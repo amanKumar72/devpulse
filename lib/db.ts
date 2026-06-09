@@ -1,9 +1,26 @@
 import mongoose from 'mongoose'
+import dns from 'dns'
 
-const MONGODB_URI = process.env.MONGO_DB_URI || ''
+function cleanEnvValue(value: string | undefined) {
+  return value?.trim().replace(/^['"]|['"]$/g, '') || ''
+}
 
-if (!MONGODB_URI) {
-  throw new Error('Please define the MONGO_DB_URI environment variable inside .env')
+const MONGO_DB_URI =
+  cleanEnvValue(process.env.MONGO_DB_URI)
+const MONGO_DNS_SERVERS =
+  cleanEnvValue(process.env.MONGO_DNS_SERVERS) || '1.1.1.1,1.0.0.1,8.8.8.8,8.8.4.4'
+
+if (!MONGO_DB_URI) {
+  throw new Error('Please define the MONGO_DB_URI or MONGODB_URI environment variable inside .env')
+}
+
+if (MONGO_DB_URI.startsWith('mongodb+srv://')) {
+  dns.setServers(
+    MONGO_DNS_SERVERS.split(',')
+      .map((server) => server.trim())
+      .filter(Boolean)
+  )
+  console.info('MongoDB SRV DNS servers:', dns.getServers())
 }
 
 interface MongooseCache {
@@ -29,9 +46,10 @@ async function dbConnect() {
   if (!cached!.promise) {
     const opts = {
       bufferCommands: false,
+      serverSelectionTimeoutMS: 5000,
     }
 
-    cached!.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
+    cached!.promise = mongoose.connect(MONGO_DB_URI, opts).then((mongoose) => {
       return mongoose
     })
   }

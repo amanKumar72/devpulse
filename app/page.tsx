@@ -8,6 +8,41 @@ import BookmarkButton from '@/components/BookmarkButton'
 
 export const dynamic = 'force-dynamic'
 
+type ArticleRecord = {
+  _id: { toString(): string }
+  title: string
+  url: string
+  tag: string
+  description?: string
+  coverImage?: string
+  author: string
+  upvotes?: number
+  commentsCount?: number
+  publishedAt: Date | string
+}
+
+type DevToArticle = {
+  id: number | string
+  title: string
+  url: string
+  tag_list?: string[]
+  description?: string
+  cover_image?: string
+  social_image?: string
+  public_reactions_count?: number
+  comments_count?: number
+  published_at?: string
+  user?: {
+    username?: string
+  }
+}
+
+type ArticleSearchQuery = {
+  $or?: Array<Partial<Record<'title' | 'description' | 'tag', { $regex: string; $options: string }>>>
+}
+
+type SortDirection = 1 | -1
+
 async function syncArticles() {
   try {
     const res = await fetch('https://dev.to/api/articles?per_page=30', {
@@ -22,8 +57,8 @@ async function syncArticles() {
       return
     }
 
-    const devToArticles = await res.json()
-    const articlesToInsert = devToArticles.map((art: any) => ({
+    const devToArticles = (await res.json()) as DevToArticle[]
+    const articlesToInsert = devToArticles.map((art) => ({
       title: art.title,
       url: art.url,
       tag: (art.tag_list && art.tag_list[0]) || 'webdev',
@@ -56,42 +91,50 @@ export default async function Page({
   const queryParams = await searchParams
   const search = queryParams.search || ''
   const sort = queryParams.sort || 'trending'
-
-  await dbConnect()
-
-  // Auto-sync if database has few articles
-  const count = await Article.countDocuments()
-  if (count < 10) {
-    await syncArticles()
-  }
-
-  // Filter query
-  const query: any = {}
-  if (search) {
-    query.$or = [
-      { title: { $regex: search, $options: 'i' } },
-      { description: { $regex: search, $options: 'i' } },
-      { tag: { $regex: search, $options: 'i' } },
-    ]
-  }
-
-  // Sort option
-  const sortOption: any = {}
-  if (sort === 'latest') {
-    sortOption.publishedAt = -1
-  } else {
-    sortOption.upvotes = -1
-    sortOption.publishedAt = -1
-  }
-
-  const articles = await Article.find(query).sort(sortOption).limit(40)
-
   const user = await getCurrentUser()
+  let articles: ArticleRecord[] = []
   let bookmarkedArticleIds = new Set<string>()
+  let dbUnavailable = false
 
-  if (user) {
-    const bookmarks = await Bookmark.find({ userId: user.userId })
-    bookmarkedArticleIds = new Set(bookmarks.map((b) => b.articleId.toString()))
+  try {
+    await dbConnect()
+
+    // Auto-sync if database has few articles
+    const count = await Article.countDocuments()
+    if (count < 10) {
+      await syncArticles()
+    }
+
+    // Filter query
+    const query: ArticleSearchQuery = {}
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } },
+        { tag: { $regex: search, $options: 'i' } },
+      ]
+    }
+
+    // Sort option
+    const sortOption: Record<string, SortDirection> = {}
+    if (sort === 'latest') {
+      sortOption.publishedAt = -1
+    } else {
+      sortOption.upvotes = -1
+      sortOption.publishedAt = -1
+    }
+
+    articles = await Article.find(query).sort(sortOption).limit(40).lean<ArticleRecord[]>()
+
+    if (user) {
+      const bookmarks = await Bookmark.find({ userId: user.userId })
+        .select('articleId')
+        .lean<{ articleId: { toString(): string } }[]>()
+      bookmarkedArticleIds = new Set(bookmarks.map((b) => b.articleId.toString()))
+    }
+  } catch (error) {
+    dbUnavailable = true
+    console.error('Home page database error:', error)
   }
 
   const popularTags = ['react', 'nodejs', 'css', 'javascript', 'nextjs', 'typescript', 'webdev', 'database']
@@ -154,7 +197,14 @@ export default async function Page({
           </div>
 
           {/* Articles Feed */}
-          {articles.length === 0 ? (
+          {dbUnavailable ? (
+            <div className="border-4 border-foreground bg-card p-8 text-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] font-mono">
+              <p className="text-destructive font-bold mb-2">[DATABASE OFFLINE] FEED TEMPORARILY UNAVAILABLE</p>
+              <p className="text-xs text-muted-foreground">
+                MongoDB could not be reached. Check Atlas network access, DNS, and the MONGO_DB_URI value, then refresh.
+              </p>
+            </div>
+          ) : articles.length === 0 ? (
             <div className="border-4 border-foreground bg-card p-8 text-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] font-mono">
               <p className="text-destructive font-bold mb-2">[WARNING] NO RECORDS RETURNED</p>
               <p className="text-xs text-muted-foreground">Adjust your search parameters or query another database index.</p>

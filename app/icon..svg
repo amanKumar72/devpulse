@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="devpulse-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#A6F23C" />
+      <stop offset="100%" stop-color="#7CCE00" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background Circle -->
+  <circle
+    cx="64"
+    cy="64"
+    r="58"
+    fill="#0F172A"
+    stroke="url(#devpulse-gradient)"
+    stroke-width="4"
+  />
+
+  <!-- Left Code Bracket -->
+  <path
+    d="M45 35 L28 64 L45 93"
+    fill="none"
+    stroke="url(#devpulse-gradient)"
+    stroke-width="8"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+
+  <!-- Pulse Line -->
+  <path
+    d="M40 64
+       H52
+       L60 48
+       L70 82
+       L78 58
+       H88"
+    fill="none"
+    stroke="url(#devpulse-gradient)"
+    stroke-width="8"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+
+  <!-- Right Code Bracket -->
+  <path
+    d="M83 35 L100 64 L83 93"
+    fill="none"
+    stroke="url(#devpulse-gradient)"
+    stroke-width="8"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>

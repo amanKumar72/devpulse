@@ -5,7 +5,7 @@ import Article from '../lib/models/Article'
 
 dotenv.config()
 
-const MONGODB_URI = process.env.MONGO_DB_URI || 'mongodb://localhost:27017/devpulse'
+const MONGO_DB_URI = process.env.MONGO_DB_URI || 'mongodb://localhost:27017/devpulse'
 
 async function fetchHackerNews() {
   console.log('Fetching top stories from HackerNews...')
@@ -81,7 +81,7 @@ async function runSync() {
   console.log('--- STARTING NEWS SYNC ---')
   console.log('Connecting to database...')
   try {
-    await mongoose.connect(MONGODB_URI)
+    await mongoose.connect(MONGO_DB_URI)
     console.log('Connected to MongoDB.')
 
     const hnStories = await fetchHackerNews()
